@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const reports = await searchReports(query, limit);
+    const reports = [];
     return NextResponse.json(reports);
   } catch (error) {
     console.error("Error searching reports:", error);
