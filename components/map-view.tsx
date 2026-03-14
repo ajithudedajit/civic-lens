@@ -65,7 +65,7 @@ export function MapView({ reports, onUpvote }: MapViewProps) {
           mapboxAccessToken="pk.eyJ1IjoiYW1lZW51IiwiYSI6ImNrOTFwcHdlYjAwOGczbmt5Mzk1eHBoNDYifQ.BwOWHvAtshdRUF--Y4kimQ"
           style={{ width: "100%", height: "100%" }}
           mapStyle="mapbox://styles/mapbox/streets-v12"
-       / >
+       >
           {reports
             .filter((report) => report.coordinates)
             .map((report) => (
