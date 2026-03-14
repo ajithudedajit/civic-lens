@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "mapbox-gl/dist/mapbox-gl.css";
+
+@layer base {
+  :root {
+    --background: 240 10% 9%;
+    --foreground: 240 5% 98%;
+    --card: 240 10% 12%;
+    --card-foreground: 240 5% 98%;
+    --popover: 240 10% 12%;
+    --popover-foreground: 240 5% 98%;
+    --primary: 280 60% 70%;
+    --primary-foreground: 240 5% 98%;
+    --secondary: 240 10% 18%;
+    --secondary-foreground: 240 5% 98%;
+    --muted: 240 10% 15%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 10% 18%;
+    --accent-foreground: 240 5% 98%;
+    --destructive: 25 80% 62%;
+    --destructive-foreground: 240 5% 98%;
+    --border: 240 10% 20%;
+    --input: 240 10% 20%;
+    --ring: 280 60% 70%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  #__next {
+    height: 100%;
+  }
+}
