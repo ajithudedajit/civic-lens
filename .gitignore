@@ -79,3 +79,6 @@ coverage/
 # Temporary folders
 tmp/
 temp/
+node_modules/
+qdrant_storage/
+*.tar.gz
