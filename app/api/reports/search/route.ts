@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchReports } from "@/lib/qdrant";
+//import { searchReports } from "@/lib/qdrant";
 
 export async function GET(request: NextRequest) {
   try {
