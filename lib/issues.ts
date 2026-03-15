@@ -1,22 +1,30 @@
-// lib/issues.ts
-import type { Report } from "@/types/report";
-import { collection, addDoc, query, orderBy, onSnapshot } from "firebase/firestore";
-import { getFirebase } from "./firebase";
+"use client";
 
+import { db } from "./firebase";
+import { collection, addDoc, query, orderBy, onSnapshot } from "firebase/firestore";
+import type { Report } from "@/types/report";
+
+// Add a new issue
 export const addIssue = async (report: Report) => {
-  if (typeof window === "undefined") return;
-  const { db } = getFirebase();
   if (!db) return;
-  await addDoc(collection(db, "issues"), { ...report, timestamp: Date.now() });
+  const issuesRef = collection(db, "issues");
+  await addDoc(issuesRef, { ...report, timestamp: new Date() });
 };
 
-export const listenIssues = (callback: (issues: Report[]) => void) => {
-  if (typeof window === "undefined") return () => {};
-  const { db } = getFirebase();
+// Listen to issues in real-time
+export const listenIssues = (callback: (reports: Report[]) => void) => {
   if (!db) return () => {};
-  const q = query(collection(db, "issues"), orderBy("timestamp", "desc"));
-  return onSnapshot(q, (snapshot) => {
-    const issues = snapshot.docs.map((doc) => doc.data() as Report);
-    callback(issues);
+  const issuesRef = collection(db, "issues");
+  const q = query(issuesRef, orderBy("timestamp", "desc"));
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const reports: Report[] = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      timestamp: new Date(doc.data().timestamp.seconds * 1000),
+    })) as Report[];
+    callback(reports);
   });
+
+  return unsubscribe;
 };
