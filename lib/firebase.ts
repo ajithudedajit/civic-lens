@@ -1,24 +1,38 @@
 // lib/firebase.ts
-let app: any = null;
-let db: any = null;
+"use client"; // important! ensures this runs only on the client
 
-export const getFirebase = () => {
-  if (typeof window === "undefined") return { app: null, db: null }; // server safety
-  if (!app) {
-    const { initializeApp } = require("firebase/app");
-    const { getFirestore } = require("firebase/firestore");
+import { initializeApp, getApps, FirebaseApp } from "firebase/app";
+import { getFirestore, Firestore } from "firebase/firestore";
+import { getAnalytics } from "firebase/analytics";
 
+let app: FirebaseApp;
+let db: Firestore;
+let analytics: ReturnType<typeof getAnalytics> | null = null;
+
+if (typeof window !== "undefined") {
+  // Only initialize Firebase in the browser
+  if (!getApps().length) {
     app = initializeApp({
-      apiKey: "...",
-      authDomain: "...",
-      projectId: "...",
-      storageBucket: "...",
-      messagingSenderId: "...",
-      appId: "...",
-      measurementId: "...",
+      apiKey: "AIzaSyA-yVIzT-UIB1BmKuOicCM-r8BHARMvrF4",
+      authDomain: "civic-lens-new.firebaseapp.com",
+      projectId: "civic-lens-new",
+      storageBucket: "civic-lens-new.firebasestorage.app",
+      messagingSenderId: "108599998082",
+      appId: "1:108599998082:web:abf189e184b634ff66a69b",
+      measurementId: "G-451GXGCNCG"
     });
 
-    db = getFirestore(app);
+    analytics = getAnalytics(app); // safe because we are in the browser
+  } else {
+    app = getApps()[0];
+    try {
+      analytics = getAnalytics(app);
+    } catch {
+      analytics = null;
+    }
   }
-  return { app, db };
-};
+
+  db = getFirestore(app);
+}
+
+export { app, db, analytics };
