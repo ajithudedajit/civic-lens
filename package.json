@@ -13,6 +13,7 @@
     "seed": "curl -X POST http://localhost:3000/api/reports/seed"
   },
   "dependencies": {
+    "firebase": "^10.9.0",
     "@qdrant/js-client-rest": "^1.16.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
