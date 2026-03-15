@@ -9,7 +9,7 @@ import MapContainer from "@/components/map/MapContainer";
 import TimelineControls from "@/components/timeline/TimelineControls";
 import EmptyState from "@/components/ui/EmptyState";
 import { ReportForm } from "@/components/report-form";
-import ReportCard from "@/components/report-card";
+import { ReportCard } from "@/components/report-card"; // named import!
 import { categoryConfig } from "@/lib/config";
 import { getAnonymousUserId } from "@/lib/anonymousUser";
 import { listenIssues } from "@/lib/issues";
@@ -50,15 +50,11 @@ export default function Home() {
   }, [mapCenter]);
 
   // --- Anonymous user ---
-  useEffect(() => {
-    setUserId(getAnonymousUserId());
-  }, []);
+  useEffect(() => setUserId(getAnonymousUserId()), []);
 
   // --- Cleanup interval ---
   useEffect(() => {
-    return () => {
-      if (playbackInterval) clearInterval(playbackInterval);
-    };
+    return () => { if (playbackInterval) clearInterval(playbackInterval); };
   }, [playbackInterval]);
 
   // --- Firestore real-time listener ---
@@ -83,89 +79,48 @@ export default function Home() {
 
           if (reportsWithDates.length > 0) {
             const timestamps = reportsWithDates.map((r: Report) => r.timestamp.getTime());
-            const earliestDate = new Date(Math.min(...timestamps));
-            const latestDate = new Date(Math.max(...timestamps));
             setTimeTravelRange({
-              start: new Date(earliestDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-              end: new Date(latestDate.getTime() + 24 * 60 * 60 * 1000),
+              start: new Date(Math.min(...timestamps) - 7 * 24 * 60 * 60 * 1000),
+              end: new Date(Math.max(...timestamps) + 24 * 60 * 60 * 1000),
             });
           }
-        } else {
-          console.error("Failed to fetch reports");
         }
-      } catch (error) {
-        console.error("Error fetching reports:", error);
-      } finally {
-        setLoading(false);
-      }
+      } catch (err) { console.error(err); }
+      finally { setLoading(false); }
     };
     if (userId) fetchReports();
   }, [userId]);
 
-  // --- Initialize Database ---
+  // --- Initialize database ---
   const initializeDatabase = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/reports/seed", { method: "POST" });
-      if (response.ok) {
-        const url = userId ? `/api/reports?userId=${userId}` : "/api/reports";
-        const reportsResponse = await fetch(url);
-        if (reportsResponse.ok) {
-          const data = await reportsResponse.json();
-          const reportsWithDates = data.map((report: any) => ({
-            ...report,
-            timestamp: new Date(report.timestamp),
-          }));
-          setReports(reportsWithDates);
-          if (reportsWithDates.length > 0) {
-            const timestamps = reportsWithDates.map((r: Report) => r.timestamp.getTime());
-            const earliestDate = new Date(Math.min(...timestamps));
-            const latestDate = new Date(Math.max(...timestamps));
-            setTimeTravelRange({
-              start: new Date(earliestDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-              end: new Date(latestDate.getTime() + 24 * 60 * 60 * 1000),
-            });
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error initializing database:", error);
-    } finally {
-      setLoading(false);
-    }
+      await fetch("/api/reports/seed", { method: "POST" });
+      const res = await fetch(userId ? `/api/reports?userId=${userId}` : "/api/reports");
+      const data = await res.json();
+      const reportsWithDates = data.map((report: any) => ({ ...report, timestamp: new Date(report.timestamp) }));
+      setReports(reportsWithDates);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
-  // --- Filter functions ---
+  // --- Filter / category functions ---
   const toggleCategory = (category: ReportCategory) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
-    );
+    setSelectedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]);
   };
+  const clearFilters = () => { setSelectedCategories([]); setSearchQuery(""); };
 
-  const clearFilters = () => {
-    setSelectedCategories([]);
-    setSearchQuery("");
-  };
-
-  // --- Time Travel Functions ---
+  // --- Time Travel / Timeline functions ---
   const getReportsUpToDate = (targetDate: Date) =>
-    reports.filter((report) =>
-      (report.timestamp instanceof Date ? report.timestamp : new Date(report.timestamp)) <= targetDate
-    );
+    reports.filter(r => (r.timestamp instanceof Date ? r.timestamp : new Date(r.timestamp)) <= targetDate);
 
   const toggleTimeTravel = () => {
     if (isTimeTraveling) {
-      setIsTimeTraveling(false);
-      setIsPlaying(false);
-      if (playbackInterval) {
-        clearInterval(playbackInterval);
-        setPlaybackInterval(null);
-      }
-      setCurrentTimeTravelDate(new Date());
-      setVisibleReportsAtTime([]);
+      setIsTimeTraveling(false); setIsPlaying(false);
+      if (playbackInterval) { clearInterval(playbackInterval); setPlaybackInterval(null); }
+      setCurrentTimeTravelDate(new Date()); setVisibleReportsAtTime([]);
     } else {
-      setIsTimeTraveling(true);
-      setCurrentTimeTravelDate(timeTravelRange.start);
+      setIsTimeTraveling(true); setCurrentTimeTravelDate(timeTravelRange.start);
       setVisibleReportsAtTime(getReportsUpToDate(timeTravelRange.start));
     }
   };
@@ -174,14 +129,9 @@ export default function Home() {
     if (playbackInterval) clearInterval(playbackInterval);
     setIsPlaying(true);
     const interval = setInterval(() => {
-      setCurrentTimeTravelDate((prevDate) => {
-        const nextDate = new Date(prevDate.getTime() + 24 * 60 * 60 * 1000);
-        if (nextDate > timeTravelRange.end) {
-          setIsPlaying(false);
-          clearInterval(interval);
-          setPlaybackInterval(null);
-          return prevDate;
-        }
+      setCurrentTimeTravelDate(prevDate => {
+        const nextDate = new Date(prevDate.getTime() + 24*60*60*1000);
+        if (nextDate > timeTravelRange.end) { setIsPlaying(false); clearInterval(interval); setPlaybackInterval(null); return prevDate; }
         setVisibleReportsAtTime(getReportsUpToDate(nextDate));
         return nextDate;
       });
@@ -189,69 +139,25 @@ export default function Home() {
     setPlaybackInterval(interval);
   };
 
-  const pauseTimeTravel = () => {
-    setIsPlaying(false);
-    if (playbackInterval) {
-      clearInterval(playbackInterval);
-      setPlaybackInterval(null);
-    }
-  };
+  const pauseTimeTravel = () => { setIsPlaying(false); if (playbackInterval) { clearInterval(playbackInterval); setPlaybackInterval(null); } };
+  const jumpToDate = (date: Date) => { if (playbackInterval) { clearInterval(playbackInterval); setPlaybackInterval(null); setIsPlaying(false); } setCurrentTimeTravelDate(date); setVisibleReportsAtTime(getReportsUpToDate(date)); };
+  const setTimeTravelStart = (date: Date) => { setTimeTravelRange(prev => ({ ...prev, start: date })); if (isTimeTraveling && currentTimeTravelDate < date) jumpToDate(date); };
+  const setTimeTravelEnd = (date: Date) => { setTimeTravelRange(prev => ({ ...prev, end: date })); if (isTimeTraveling && currentTimeTravelDate > date) jumpToDate(date); };
+  const setTimeTravelSpeed = (speed: number) => { setPlaybackSpeed(speed); if (isPlaying) { pauseTimeTravel(); setTimeout(() => playTimeTravel(), 100); } };
 
-  const jumpToDate = (date: Date) => {
-    if (playbackInterval) {
-      clearInterval(playbackInterval);
-      setPlaybackInterval(null);
-      setIsPlaying(false);
-    }
-    setCurrentTimeTravelDate(date);
-    setVisibleReportsAtTime(getReportsUpToDate(date));
-  };
-
-  const setTimeTravelStart = (date: Date) => {
-    setTimeTravelRange((prev) => ({ ...prev, start: date }));
-    if (isTimeTraveling && currentTimeTravelDate < date) jumpToDate(date);
-  };
-
-  const setTimeTravelEnd = (date: Date) => {
-    setTimeTravelRange((prev) => ({ ...prev, end: date }));
-    if (isTimeTraveling && currentTimeTravelDate > date) jumpToDate(date);
-  };
-
-  const setTimeTravelSpeed = (speed: number) => {
-    setPlaybackSpeed(speed);
-    if (isPlaying) {
-      pauseTimeTravel();
-      setTimeout(() => playTimeTravel(), 100);
-    }
-  };
-
-  // --- Vote handler ---
-  const handleVoteUpdate = (
-    reportId: string,
-    upvotes: number,
-    downvotes: number,
-    userVote: "up" | "down" | null
-  ) => {
-    setReports((prevReports) =>
-      prevReports.map((report) =>
-        report.id === reportId ? { ...report, upvotes, downvotes, userVote } : report
-      )
-    );
+  // --- Voting ---
+  const handleVoteUpdate = (reportId: string, upvotes: number, downvotes: number, userVote: "up"|"down"|null) => {
+    setReports(prev => prev.map(r => r.id === reportId ? { ...r, upvotes, downvotes, userVote } : r));
     if (selectedReport?.id === reportId) setSelectedReport({ ...selectedReport, upvotes, downvotes, userVote });
-    if (isTimeTraveling)
-      setVisibleReportsAtTime((prevReports) =>
-        prevReports.map((report) =>
-          report.id === reportId ? { ...report, upvotes, downvotes, userVote } : report
-        )
-      );
+    if (isTimeTraveling) setVisibleReportsAtTime(prev => prev.map(r => r.id === reportId ? { ...r, upvotes, downvotes, userVote } : r));
   };
 
-  // --- Go to My Location ---
-  const handleGoToMyLocation = async () => {
+  // --- Location ---
+  const handleGoToMyLocation = () => {
     if (!navigator.geolocation) return alert("Location not supported");
     navigator.geolocation.getCurrentPosition(
-      (pos) => setMapCenter([pos.coords.longitude, pos.coords.latitude]),
-      (err) => alert("Unable to get location: " + err.message),
+      pos => setMapCenter([pos.coords.longitude, pos.coords.latitude]),
+      err => alert("Unable to get location: " + err.message),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   };
@@ -260,91 +166,36 @@ export default function Home() {
   const handleCreateReport = async (reportData: CreateReportData & { coordinates?: [number, number] }) => {
     try {
       setLoading(true);
-      const response = await fetch("/api/reports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...reportData, coordinates: reportData.coordinates || [-74.006, 40.7128] }),
-      });
-      if (response.ok) {
-        const newReport = await response.json();
-        setReports((prev) => [{ ...newReport, timestamp: new Date(newReport.timestamp) }, ...prev]);
-        setShowReportForm(false);
-      }
-    } finally {
-      setLoading(false);
-    }
+      const response = await fetch("/api/reports", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({...reportData, coordinates: reportData.coordinates || [-74.006,40.7128]}) });
+      if (response.ok) { const newReport = await response.json(); setReports(prev => [{ ...newReport, timestamp: new Date(newReport.timestamp)}, ...prev]); setShowReportForm(false); }
+    } finally { setLoading(false); }
   };
 
   // --- Filtered reports ---
   const filteredReports = useMemo(() => {
-    return reports.filter((report) => {
-      const matchesSearch =
-        searchQuery === "" ||
-        report.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.location.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        selectedCategories.length === 0 || selectedCategories.includes(report.category);
+    return reports.filter(r => {
+      const matchesSearch = searchQuery === "" || r.title.toLowerCase().includes(searchQuery.toLowerCase()) || r.description.toLowerCase().includes(searchQuery.toLowerCase()) || r.location.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(r.category);
       return matchesSearch && matchesCategory;
     });
   }, [reports, searchQuery, selectedCategories]);
 
-  if (loading)
-    return (
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-        <p className="text-white">Loading reports...</p>
-      </div>
-    );
-
+  if (loading) return (<div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div><p className="text-white">Loading reports...</p></div>);
   if (reports.length === 0) return <EmptyState onInitializeDatabase={initializeDatabase} />;
 
   return (
     <div className={`fixed inset-0 w-full h-full ${isTimeTraveling ? "pb-20" : ""}`}>
-      {/* Map */}
-      <MapContainer
-        reports={isTimeTraveling ? visibleReportsAtTime : filteredReports}
-        selectedReport={selectedReport}
-        hoveredReport={hoveredReport}
-        onReportSelect={setSelectedReport}
-        onReportHover={setHoveredReport}
-        onVoteUpdate={handleVoteUpdate}
-        center={mapCenter}
-      />
+      <MapContainer reports={isTimeTraveling ? visibleReportsAtTime : filteredReports} selectedReport={selectedReport} hoveredReport={hoveredReport} onReportSelect={setSelectedReport} onReportHover={setHoveredReport} onVoteUpdate={handleVoteUpdate} center={mapCenter} />
 
-      {/* Search & Filters */}
-      {/* ... existing JSX unchanged ... */}
-
-      {/* --- Real-Time Issues Feed --- */}
+      {/* Real-Time Issues Feed */}
       <div className="issues-feed absolute top-24 left-4 right-4 max-h-[80%] overflow-y-auto z-10">
-        {issues.length === 0 ? (
-          <EmptyState message="No reports yet." />
-        ) : (
-          issues.map((report, i) => <ReportCard key={i} report={report} />)
-        )}
+        {issues.length === 0 ? <EmptyState message="No reports yet." /> : issues.map((report,i) => <ReportCard key={i} report={report} />)}
       </div>
 
-      {/* Bottom Controls */}
-      {/* ... Add Report, Location, Legend buttons unchanged ... */}
-
       {/* TimelineControls */}
-      <TimelineControls
-        isActive={isTimeTraveling}
-        isPlaying={isPlaying}
-        currentDate={currentTimeTravelDate}
-        startDate={timeTravelRange.start}
-        endDate={timeTravelRange.end}
-        playbackSpeed={playbackSpeed}
-        onToggleActive={toggleTimeTravel}
-        onPlay={playTimeTravel}
-        onPause={pauseTimeTravel}
-        onJumpToDate={jumpToDate}
-        onSetStartDate={setTimeTravelStart}
-        onSetEndDate={setTimeTravelEnd}
-        onSetPlaybackSpeed={setTimeTravelSpeed}
-      />
+      <TimelineControls isActive={isTimeTraveling} isPlaying={isPlaying} currentDate={currentTimeTravelDate} startDate={timeTravelRange.start} endDate={timeTravelRange.end} playbackSpeed={playbackSpeed} onToggleActive={toggleTimeTravel} onPlay={playTimeTravel} onPause={pauseTimeTravel} onJumpToDate={jumpToDate} onSetStartDate={setTimeTravelStart} onSetEndDate={setTimeTravelEnd} onSetPlaybackSpeed={setTimeTravelSpeed} />
 
-      {/* Report Form Modal */}
+      {/* Report Form */}
       {showReportForm && <ReportForm onSubmit={handleCreateReport} onClose={() => setShowReportForm(false)} />}
     </div>
   );
