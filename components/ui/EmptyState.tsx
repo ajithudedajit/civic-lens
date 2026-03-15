@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
   onInitializeDatabase?: () => void;
+   message?: string; // add this line
 }
 
 export default function EmptyState({ onInitializeDatabase }: EmptyStateProps) {
