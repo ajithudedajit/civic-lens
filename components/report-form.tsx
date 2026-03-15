@@ -1,5 +1,6 @@
 "use client";
 
+import { addIssue } from "../lib/issues";
 import { useState, useRef } from "react";
 import { X, MapPin, Camera, Video, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,26 @@ import { Select } from "@/components/ui/select";
 import { CreateReportData, ReportCategory } from "@/types/report";
 import { cn } from "@/lib/utils";
 import { LocationPicker } from "./LocationPicker";
+
+const handleSubmit = async (event: React.FormEvent) => {
+  event.preventDefault();
+
+  const reportData: Report = {
+    title,
+    description,
+    // include other fields your app already uses
+  };
+
+  // Save to your existing backend API
+  await submitReportToAPI(reportData);
+
+  // Save to Firestore for real-time sync
+  await addIssue(reportData);
+
+  // Clear form
+  setTitle("");
+  setDescription("");
+};
 
 interface ReportFormProps {
   onSubmit: (
